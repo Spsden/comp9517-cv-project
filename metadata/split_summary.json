@@ -1,0 +1,10 @@
+{
+  "seed": 42,
+  "classes": 500,
+  "train_images": 20000,
+  "validation_images": 5000,
+  "test_images": 5000,
+  "train_per_class": 40,
+  "validation_per_class": 10,
+  "test_per_class": 10
+}

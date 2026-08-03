@@ -1,0 +1,31 @@
+experiment_name: resnet18_pretrained
+seed: 42
+
+data:
+  num_classes: 500
+  train_per_class: 40
+  validation_per_class: 10
+  test_per_class: 10
+  image_size: 224
+  batch_size: 64
+  num_workers: 2
+
+model:
+  architecture: resnet18
+  pretrained: true
+
+# This file is a starting point for the transfer-learning experiment.
+# Its final schedule should be documented by the person running it.
+training:
+  epochs: 30
+  optimizer: adamw
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  label_smoothing: 0.1
+  early_stopping_patience: 8
+  use_amp: true
+
+scheduler:
+  name: cosine
+  minimum_learning_rate: 0.000001
+

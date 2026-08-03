@@ -1,0 +1,45 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# The image data and the original archive are kept outside version control.
+train_mini/
+val/
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+view.html
+
+# Checkpoints are stored in Drive during Colab runs.
+checkpoints/*
+!checkpoints/.gitkeep
+
+# Local model artefacts and experiment logs.
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.log
+
+# Python packaging output.
+build/
+dist/
+*.egg-info/
+
+# Keep lightweight summaries, but not generated image dumps.
+results/**/*.png
+results/**/*.jpg
+results/**/*.jpeg
