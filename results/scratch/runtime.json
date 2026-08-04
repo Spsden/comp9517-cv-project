@@ -1,0 +1,5 @@
+{
+  "torch_version": "2.13.0",
+  "device": "mps",
+  "device_name": "mps"
+}
