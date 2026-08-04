@@ -36,7 +36,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Open `notebooks/01_resnet18_scratch.ipynb` for the random-initialisation experiment. The first setup cell contains the only machine-specific paths. On Colab, extract the dataset to the runtime's `/content` disk and save checkpoints to Google Drive.
+Open `notebooks/01_resnet18_scratch.ipynb` for the random-initialisation experiment and `notebooks/02_resnet18_pretrained.ipynb` for ImageNet-pretrained fine-tuning. After both runs, use `notebooks/04_model_comparison.ipynb` to reproduce the consolidated tables, figures and paired test-image analysis without loading the dataset or checkpoints. On Colab, extract the dataset to the runtime's `/content` disk and save checkpoints to Google Drive.
 
 ## Reproducibility
 
@@ -59,4 +59,3 @@ The two known duplicate pairs in `train_mini` are kept together in the training 
 - per-image prediction CSV
 
 Large model files and the image dataset must not be added to the submitted source-code archive.
-

@@ -14,3 +14,4 @@ results/<experiment>/
 
 Checkpoints do not belong here. They are large, machine-specific working files and are saved in Google Drive during Colab training.
 
+`results/comparison/` contains the derived scratch-versus-pretrained metric, efficiency and per-class tables produced by `notebooks/04_model_comparison.ipynb`.

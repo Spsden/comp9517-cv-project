@@ -1,0 +1,14 @@
+{
+  "top1_accuracy": 0.6602,
+  "overall_accuracy": 0.6602,
+  "top5_accuracy": 0.833,
+  "balanced_accuracy": 0.6602,
+  "macro_precision": 0.6775129731895211,
+  "macro_recall": 0.6602,
+  "macro_f1": 0.6575780443543774,
+  "test_images": 5000,
+  "inference_seconds": 22.989299790933728,
+  "images_per_second": 217.49248761251292,
+  "training_seconds": 5632.9843142532045,
+  "best_epoch": 22
+}
