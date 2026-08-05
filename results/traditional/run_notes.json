@@ -1,0 +1,13 @@
+{
+  "platform": "macOS-26.1-arm64-arm-64bit",
+  "num_classes": 500,
+  "train_images": 20000,
+  "val_images": 5000,
+  "test_images": 5000,
+  "img_max_side": 200,
+  "primary_vocab_size": 200,
+  "kmeans_subsample_cap": 100000,
+  "classifier": "SGDClassifier(loss='hinge')  # linear SVM via SGD, chosen for tractability with 500 classes",
+  "primary_test_macro_f1": 0.02751873177470686,
+  "primary_test_top1": 0.0342
+}
