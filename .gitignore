@@ -28,6 +28,8 @@ view.html
 /report
 /output
 /author-kit-CVPR2026-v1-latex-
+/tests
+/overleaf
 
 # Checkpoints are local generated artefacts.
 checkpoints/*
