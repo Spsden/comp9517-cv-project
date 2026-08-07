@@ -8,5 +8,6 @@ These files fix the data partition used by every group member.
 - `splits/validation.csv`: 5,000 different images from `train_mini`.
 - `splits/test.csv`: 5,000 images from the official iNaturalist validation subset.
 
-The manifests were generated with seed 42. Paths are relative to the dataset root, so the same files work on macOS and Colab. Do not edit rows manually or regenerate them for individual models.
-
+The manifests were generated with seed 42. Paths are relative to the configured
+dataset root, so the same files work in every local checkout. Do not edit rows
+manually or regenerate them for individual models.

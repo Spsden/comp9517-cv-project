@@ -139,7 +139,16 @@ def most_confused_pairs(
                 "count": count,
             }
         )
-    return pd.DataFrame(rows)
+    return pd.DataFrame(
+        rows,
+        columns=[
+            "true_idx",
+            "predicted_idx",
+            "true_class",
+            "predicted_class",
+            "count",
+        ],
+    )
 
 
 def save_metrics(metrics: dict, path: str | Path) -> None:
@@ -147,4 +156,3 @@ def save_metrics(metrics: dict, path: str | Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as handle:
         json.dump(metrics, handle, indent=2)
-

@@ -1,0 +1,26 @@
+experiment_name: handcrafted_features
+seed: 42
+
+data:
+  num_classes: 500
+  image_size: 128
+  batch_size: 64
+  num_workers: 2
+
+features:
+  names:
+    - hog
+    - hsv
+    - hog_hsv
+  cache: true
+
+model:
+  architecture: sgd_hinge
+  c_values:
+    - 0.01
+    - 0.1
+    - 1.0
+    - 10.0
+  epochs: 10
+
+selection_metric: validation_macro_f1

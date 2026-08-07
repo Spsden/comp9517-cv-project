@@ -203,8 +203,9 @@ def validate_manifests(
     *,
     expected_classes: int = 500,
     expected_counts: dict[str, int] | None = None,
+    data_root: str | Path | None = None,
 ) -> pd.DataFrame:
-    """Check split sizes and return a per-class count table."""
+    """Check split sizes, optional image paths, and return class counts."""
     metadata_root = Path(metadata_root)
     expected_counts = expected_counts or {
         "train": 40,
@@ -229,6 +230,21 @@ def validate_manifests(
     for split_name, expected in expected_counts.items():
         if split_name not in counts or not counts[split_name].eq(expected).all():
             raise ValueError(f"Unexpected per-class counts in {split_name}.")
+    if combined["path"].duplicated().any():
+        duplicate_paths = combined.loc[combined["path"].duplicated(), "path"].head(5)
+        raise ValueError(f"The manifests reuse image paths across splits: {list(duplicate_paths)}")
+    if data_root is not None:
+        data_root = Path(data_root)
+        missing = [
+            relative_path
+            for relative_path in combined["path"]
+            if not (data_root / relative_path).is_file()
+        ]
+        if missing:
+            raise FileNotFoundError(
+                f"{len(missing)} manifest image paths are missing below {data_root}; "
+                f"first missing path: {missing[0]}"
+            )
     return counts
 
 
@@ -288,6 +304,16 @@ def build_transforms(image_size: int = 224) -> tuple[Callable, Callable]:
     return train_transform, evaluation_transform
 
 
+def build_classical_transform(image_size: int = 128) -> Callable:
+    """Return deterministic uint8 pixels for handcrafted feature extraction."""
+    return transforms.Compose(
+        [
+            transforms.Resize((image_size, image_size)),
+            transforms.PILToTensor(),
+        ]
+    )
+
+
 def _seed_worker(worker_id: int) -> None:
     worker_seed = torch.initial_seed() % (2**32)
     np.random.seed(worker_seed)
@@ -303,21 +329,36 @@ def create_dataloaders(
     num_workers: int = 2,
     seed: int = 42,
     pin_memory: bool = False,
+    train_transform: Callable | None = None,
+    evaluation_transform: Callable | None = None,
+    return_paths: bool = False,
 ) -> dict[str, DataLoader]:
-    """Create consistent loaders for all deep-learning experiments."""
+    """Create consistent manifest-backed loaders for project experiments.
+
+    The default transforms reproduce the ResNet experiments. Classical feature
+    pipelines can supply deterministic transforms while retaining the exact
+    same manifests, labels, batching and worker seeding.
+    """
     data_root = Path(data_root)
     split_root = Path(metadata_root) / "splits"
-    train_transform, evaluation_transform = build_transforms(image_size)
+    default_train_transform, default_evaluation_transform = build_transforms(
+        image_size
+    )
+    train_transform = train_transform or default_train_transform
+    evaluation_transform = evaluation_transform or default_evaluation_transform
 
     datasets = {
         "train": ManifestDataset(
-            split_root / "train.csv", data_root, train_transform, return_path=False
+            split_root / "train.csv",
+            data_root,
+            train_transform,
+            return_path=return_paths,
         ),
         "validation": ManifestDataset(
             split_root / "validation.csv",
             data_root,
             evaluation_transform,
-            return_path=False,
+            return_path=return_paths,
         ),
         "test": ManifestDataset(
             split_root / "test.csv",
@@ -343,4 +384,3 @@ def create_dataloaders(
         "validation": DataLoader(datasets["validation"], shuffle=False, **common),
         "test": DataLoader(datasets["test"], shuffle=False, **common),
     }
-

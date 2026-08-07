@@ -1,0 +1,386 @@
+                 Fine-Grained Species Recognition on iNaturalist-2021:
+           Classical Features, ResNet-18, Transfer Learning, and Grad-CAM
+
+                                             COMP9517 Project Group
+                                                UNSW Sydney
+                                              Repository-derived final report
+
+
+
+                        Abstract                                   ways: training it from scratch and fine-tuning it from
+                                                                   ImageNet weights [3]. We also used Grad-CAM [10] to
+In this project, we classify 500 iNaturalist species us-           see which parts of an image influenced a prediction.
+ing a balanced set of 30,000 images. We tried two                     The main things we did in this project are:
+different approaches: handcrafted image features with              • make a fixed balanced split with 20,000 training,
+classical classifiers, and ResNet-18 based deep-learning              5,000 validation, and 5,000 test images;
+models. For the classical approach, SIFT with bag-of-              • run classical and deep-learning pipelines on the
+visual-words and a linear SVM gave the best result, but               same split and compare them using the same met-
+its top-1 accuracy was only 3.42%. ResNet-18 trained                  rics;
+from scratch achieved 41.98%. When we started from                 • test different handcrafted features, SIFT vocabulary
+ImageNet pretrained weights and fine-tuned the model,                 sizes, classifiers, and ResNet initialisation methods;
+top-1 accuracy increased to 66.02%, top-5 accuracy to                 and
+83.30%, and macro-F1 to 65.76%. We also compared                   • analyse training behaviour, errors, timing, and
+HOG, HSV, HOG+HSV, different SIFT vocabulary                          Grad-CAM outputs.
+sizes, and two classical classifiers. The report includes
+training curves, confusion examples, failure cases, and            2. Literature Review
+Grad-CAM visualisations. The results show that trans-
+fer learning helps a lot when there are only 40 training           2.1. Handcrafted visual representations
+images per class, although there is still clear overfitting.       Before CNNs became common, image classification was
+                                                                   usually split into feature extraction, feature aggrega-
+                                                                   tion, and classification. SIFT finds keypoints and de-
+                                                                   scribes the local gradients around them. It was de-
+1. Introduction                                                    signed to be fairly stable under scale, rotation, and
+                                                                   moderate lighting changes [8]. Since an image can have
+Fine-grained image classification means that the classes           a different number of SIFT keypoints, BoVW maps
+look quite similar to each other. In our case, the model           them to a learned visual vocabulary and stores the
+has to tell apart 500 species. A small change in colour,           counts as one fixed-length histogram [1]. This is easy
+leaf shape, wing pattern, or texture can matter, but               to train, but it also loses the original position of the
+the images also have different poses, lighting, camera             keypoints, which can be important when two species
+quality, and backgrounds. iNaturalist is useful for this           have similar local textures.
+because it contains real observations taken in uncon-                 HOG stores the direction of image gradients over a
+trolled conditions, not studio images [11]. In our se-             fixed grid [2]. It can capture edges, shape, and texture,
+lected dataset, every class has only 40 training images,           but it can struggle when the object moves a lot in the
+which makes the task more diﬀicult.                                image. HSV histograms give simple colour information,
+   Instead of using only one model, we compared old-               but they do not say where the colour appears. We
+style computer vision methods with deep learning. For              used these features because they are standard and give
+the first group, we used SIFT [8], bag-of-visual-words             understandable baselines. A linear SVM is a practical
+(BoVW) [1], HOG [2], HSV colour histograms, linear                 classifier for large feature vectors, while a random forest
+classifiers, and a random forest. For the deep-learning            gives us one nonlinear comparison. So, the classical
+part, we used the same ResNet-18 network [4] in two                experiments do not depend on only one feature or one
+
+                                                               1
+classifier.                                                       accuracy, and macro recall become the same number
+                                                                  here. We still saved all of them so that the evaluation
+2.2. Deep and transfer learning for ﬁne-grained                   is complete and easy to compare across methods.
+     recognition
+                                                                  3.2. Metrics
+CNNs learn the image features directly instead of using
+manually designed descriptors. ResNet adds shortcut               For an image i with true class yi , top-k accuracy checks
+connections, making deep networks easier to train [4].            whether the correct class is in the top k model pre-
+We selected ResNet-18 because it is not too large and it          dictions. We report top-1 and top-5 accuracy, macro
+can be trained repeatedly with our available hardware.            precision, macro recall, and macro-F1. For C = 500
+Fine-grained recognition can benefit from focusing on             classes,
+                                                                                            1 ∑ 2Pc Rc
+                                                                                               C
+small discriminative parts, as shown by bilinear CNN
+                                                                                F1,macro =                   .          (1)
+methods [6]. We kept the network simple in this project                                     C c=1 Pc + Rc
+so that the comparison between scratch training and
+                                                                  Macro averaging gives every class equal importance.
+pretrained training stays clear.
+                                                                  This matters in general even though our selected test
+   ImageNet pretraining gives the network a starting
+                                                                  split is balanced. We also saved full test predictions,
+point from a much bigger image dataset [3]. Earlier lay-
+                                                                  confusion matrices, commonly confused class pairs, in-
+ers often learn general edges and textures, while later
+                                                                  ference time, and throughput.
+layers are more task-specific. This is why replacing the
+final classifier and then fine-tuning the full network is a       4. Methods
+common transfer-learning method [12]. However, good
+ImageNet performance does not automatically mean                  4.1. SIFT bag-of-visual-words
+good target-task performance [5], so we still evaluated           For the main traditional method, we first convert each
+it properly on our own validation and test splits. This           image to grayscale and resize it only if its longest side
+is important here because each class has very limited             is more than 200 pixels. OpenCV SIFT then gives
+training data.                                                    128-dimensional descriptors around detected keypoints.
+   The iNaturalist images have changes in scale, pose,            We sampled at most 100,000 training descriptors us-
+background, and image quality [11]. We used random                ing seed 42 and trained MiniBatchKMeans (ninit = 1,
+crops, flips, colour jitter, rotation, weight decay, and          batch size 1,000) to make K visual words. Every image
+label smoothing to handle some of this variation. La-             is represented by an ℓ2 -normalised histogram of those
+bel smoothing can reduce overconfident predictions, al-           words.
+though it does not always help every task [9]. Grad-                 We fit the standard scaler only on training his-
+CAM uses gradients from the class score to show which             tograms. Our main classifier is SGDClassifier with
+convolutional regions affected a prediction [10]. It is           hinge loss, α = 10−4 , tolerance 10−3 , and at most
+useful for checking the model, but it does not prove              1,000 iterations. This works like a linear SVM trained
+that the model is reasoning correctly.                            using stochastic optimisation. The main result uses
+                                                                  K = 200, and we also tested K ∈ {50, 100, 200, 400}.
+3. Dataset and Experimental Protocol                              On the same K = 200 features, we trained a random
+                                                                  forest with 150 trees and maximum depth 25 to check
+3.1. Balanced iNaturalist subset
+                                                                  whether a nonlinear classifier helps.
+We prepared the selected iNaturalist archive using a
+notebook that creates one fixed mapping from class                4.2. HOG and HSV descriptors
+names to class indices. The final data has 500 species            For another handcrafted experiment, we resize RGB
+and 60 images per species: 40 for training, 10 for val-           images to 128 × 128. HOG is calculated on luminance
+idation, and 10 for testing. This gives 30,000 images             using nine orientations, 8×8 pixel cells, 2×2 cell blocks,
+in total. We used seed 42. Images that came from the              L2-Hys normalisation, and square-root intensity com-
+same source identifier were kept in the same split so             pression. This gives 8,100 features. HSV uses global
+that near-duplicate images do not leak into validation            histograms with 32 hue bins, 16 saturation bins, and 16
+or test. Before training, we checked paths, labels, class         value bins, giving 64 features. Combining both gives
+counts, split sizes, and overlap between the manifests.           8,164 features.
+   We used validation data for choosing checkpoints                  We standardise each feature set and train an SGD
+and hyperparameters. The test data was kept for final             hinge-loss classifier for ten epochs. We tried C ∈
+evaluation. Since each class has the same number of               {0.01, 0.1, 1, 10} and selected using validation macro-
+test images, overall accuracy, top-1 accuracy, balanced           F1. These runs help us see whether shape features,
+
+                                                              2
+colour features, or both together are useful for this             Table 1. Main ResNet-18 training hyperparameters. Both
+dataset.                                                          runs use 224 × 224 input, batch size 64, weight decay 10−4 ,
+                                                                  label smoothing 0.1, cosine scheduling, and best-validation-
+4.3. ResNet-18 from scratch                                       loss selection.
+For the scratch model, we replace the ResNet-18 out-
+                                                                         Setting                  Scratch ImageNet
+put layer with a 500-class layer and start with random
+weights. Training images use random resized crops to                     Epoch budget                   60         30
+224 × 224 (scale 0.65–1.0), horizontal flips, colour jitter              Optimizer                   SGD     AdamW
+of 0.2, and rotations up to 10◦ . Validation and test                    Initial learning rate        0.05   3 × 10−4
+images are resized to 256 pixels and centre-cropped to                   Minimum learning rate       10−5        10−6
+                                                                         Momentum                      0.9          –
+224. We use ImageNet mean and standard deviation
+                                                                         Early-stop patience            12          8
+for normalisation.
+                                                                         Best epoch                     53         22
+   We train it with cross-entropy loss with label
+smoothing 0.1, SGD learning rate 0.05, momentum 0.9,
+weight decay 10−4 , and batch size 64. The learning
+                                                                  OpenCV and scikit-learn on CPU, and feature caches
+rate follows a cosine schedule down to 10−5 . The max-
+                                                                  make reruns faster. We used validation data to se-
+imum was 60 epochs and early stopping patience was
+                                                                  lect neural checkpoints, SIFT settings, and HOG/HSV
+12. We saved the checkpoint with the lowest validation
+                                                                  regularisation. The final numbers come from the un-
+loss. Mixed precision was enabled when the device sup-
+                                                                  touched 5,000-image test set. Table 1 lists the impor-
+ported it.
+                                                                  tant deep-learning settings; the handcrafted settings
+4.4. ImageNet transfer learning                                   are given in the Methods section.
+The pretrained model uses the same ResNet-18, trans-              5.2. Overall comparison
+forms, labels, and data split, but starts with ImageNet-
+                                                                  Table 2 gives the final test results. Random guessing in
+1K weights. We replaced the last layer and fine-tuned
+                                                                  500 classes would be only 0.20% top-1 and 1.00% top-5.
+the whole model instead of freezing the backbone. We
+                                                                  All our methods beat this, but the difference between
+used AdamW [7] with learning rate 3 × 10−4 , weight
+                                                                  classical and deep learning is very large. The best tradi-
+decay 10−4 , label smoothing 0.1, and cosine decay to
+                                                                  tional model, SIFT–BoVW with the SGD linear SVM,
+10−6 . This run had a maximum of 30 epochs and early
+                                                                  gets 3.42% top-1 and 11.06% top-5. Scratch ResNet-
+stopping patience 8. So the main difference is that the
+                                                                  18 reaches 41.98% top-1. The pretrained ResNet-18 is
+pretrained model starts with useful visual features and
+                                                                  the best model with 66.02% top-1, 83.30% top-5, and
+uses a smaller fine-tuning learning rate.
+                                                                  65.76% macro-F1.
+4.5. Grad-CAM interpretation                                         Compared with scratch training, pretraining im-
+                                                                  proves top-1 by 24.04 points, top-5 by 19.84 points, and
+For the trained scratch model, Grad-CAM hooks the
+                                                                  macro-F1 by 24.48 points. This is a big improvement.
+final residual stage, layer4[-1]. Given class score sc and
+                                                                  The pretrained model already has useful knowledge
+activation map Ak , channel importance is
+                                       (           )              about edges, texture, shape, and object parts, which
+   c     1 ∑ ∂sc             c
+                                         ∑
+                                               c k
+                                                                  is hard to learn from only 40 images per species.
+  αk =               ,     L = ReLU           αk A . (2)
+        Z u,v ∂Akuv                                               5.3. Convergence and generalisation
+                                          k
+
+We resize the heatmap and put it on top of the origi-             Figure 1 makes the benefit of transfer learning clear.
+nal image. We generated maps for correct predictions,             Validation top-1 goes above 50% in the first few epochs
+confident wrong predictions, and images from the most             for the pretrained model. The scratch model takes
+common confusion pair. Grad-CAM is only for check-                about 30 epochs to get close to 40%. The best pre-
+ing the model: a good-looking heatmap does not prove              trained checkpoint is epoch 22, while the scratch model
+that the model is using the right biological features.            reaches its best checkpoint at epoch 53. The recorded
+                                                                  MPS training time up to these checkpoints was 5,633 s
+5. Experimental Results                                           (1.56 h) and 13,550 s (3.76 h), respectively.
+                                                                     Both models reach almost 100% training accuracy,
+5.1. Experimental setup                                           but validation and test accuracy stop near 66% for pre-
+All methods use the same seed-42 manifests and the                training and 42% for scratch. The loss curves also sepa-
+same 500-class mapping. We ran the neural models us-              rate, so this is overfitting and not just random accuracy
+ing PyTorch on Apple MPS. The classical methods use               fluctuation. Augmentation, label smoothing, weight
+
+                                                              3
+Table 2. Test performance on 5,000 images from 500 balanced classes. Values are percentages. “SIFT–RF” and “SIFT–SGD”
+use the same 200-word BoVW input. Best results are bold.
+
+          Method                 Top-1    Top-5   Balanced acc.   Macro precision   Macro recall   Macro-F1
+          HSV + SGD                1.94    6.96            1.94              1.82          1.94        1.58
+          HOG + SGD                1.96    6.20            1.96              2.11          1.96        1.78
+          HOG+HSV + SGD            1.72    6.76            1.72              1.84          1.72        1.67
+          SIFT–BoVW–RF             2.04    5.74            2.04              1.49          2.04        1.60
+          SIFT–BoVW–SGD            3.42   11.06            3.42              3.36          3.42        2.75
+          ResNet-18, scratch      41.98   63.46           41.98             42.42         41.98       41.28
+          ResNet-18, ImageNet     66.02   83.30           66.02             67.75         66.02       65.76
+
+
+
+
+Figure 1. Training dynamics for the two ResNet-18 experiments. ImageNet initialisation begins at much higher accuracy
+and converges rapidly, but both runs ultimately exhibit a large train–validation gap.
+
+
+decay, cosine scheduling, and saving the best valida-         is mostly memorising the training set. HSV is fast and
+tion checkpoint help, but they do not fully solve it.         small, but loses spatial information. HOG has shape in-
+With 500 classes and only 40 training images per class,       formation, but it is not as flexible as local SIFT match-
+training for more epochs alone is not a good solution.        ing when species images have different poses and back-
+                                                              grounds.
+5.4. Traditional feature ablations                               For SIFT–BoVW, changing vocabulary size gives an
+The HOG/HSV runs show that combining features                 accuracy versus time trade-off (Figure 2). Table 3
+does not automatically improve the result. HOG gets           shows that K = 100 has the best validation macro-
+1.78% macro-F1, HSV gets 1.58%, and HOG+HSV                   F1 (3.13%). K = 400 has the best test top-1 (3.86%)
+gets 1.67%. For larger C, HOG gets a very high train-         and test macro-F1 (2.93%), but takes 333.6 s to fit. We
+ing score but stays near 2% validation macro-F1. So it        report K = 200 as a middle setting. It is important to
+
+                                                          4
+                                                                  in the centre. Wrong predictions are common when the
+                                                                  subject is small, the background is busy, or the image
+                                                                  has an unusual viewpoint. Some errors are between
+                                                                  visually similar species, which means SIFT captures
+                                                                  some broad shape and texture. Other errors are be-
+                                                                  tween very different groups. This is one weakness of
+                                                                  BoVW: after keypoints are pooled into one histogram,
+Figure 2. SIFT–BoVW vocabulary ablation. Larger vocab-            the original layout information is lost.
+ularies cost substantially more to fit; test macro-F1 rises
+only modestly.
+                                                                  6.2. Confusion structure
+                                                                  The repository also saves full 500-class confusion ma-
+Table 3. SIFT vocabulary ablation. F1 and top-1 are per-          trices and the most common confusion pairs. Figure 4
+centages; time is classifier fit time.                            shows a readable 15-class SIFT subset. The diagonal is
+                                                                  weak because SIFT top-1 is only 3.42%, but some off-
+         K    Val F1    Test F1    Top-1   Fit (s)                diagonal cells repeat more than others, so the errors
+         50      2.57       2.05    2.58      17.7                are not fully random. For the neural models, pretrain-
+        100      3.13       2.70    3.34      38.3                ing improves many classes, but hard pairs still remain.
+        200      3.11       2.75    3.42     164.1                The pretrained top-5 score is 17.28 points higher than
+        400      3.00       2.93    3.86     333.6                top-1, which means the correct species is often among
+                                                                  the likely predictions but not ranked first.
+                                                                  6.3. Grad-CAM case study
+note that it is not the best validation setting, so we are
+not selecting the result after looking at the test set.           The most common directed confusion in the saved
+   Classifier choice also changes the result. On K =              scratch-model analysis is Lupinus perennis predicted as
+200 features, the linear SGD classifier is better than            Agastache foeniculum. In Figure 5, Grad-CAM mostly
+random forest by 1.38 top-1 points and 1.15 macro-                highlights the flower spike and nearby plant region. So
+F1 points. It also fits in 169.6 s instead of 391.6 s.            the model is often looking at the relevant object, but
+The SIFT histograms are large and sparse, so a linear             it still cannot separate these similar plants properly.
+classifier seems to work better than the depth-limited            In some other wrong cases, the attention also covers
+forest in this case.                                              the background or a central region. This suggests that
+                                                                  we need both better fine-grained features and better
+5.5. Efﬁciency and timing scope                                   localisation, not only background removal.
+The deep models process about 218 test images/s in
+the recorded inference loop. The saved traditional pre-           7. Discussion
+diction times look much smaller (16 ms for 5,000 SIFT             The overall result is quite clear. Classical features do
+histograms and 9.5 ms for HSV), but these numbers                 better than random guessing, but they are not enough
+only time classifier prediction after features are already        for 500-way species recognition. HSV loses location in-
+computed. They do not include SIFT detection, visual-             formation, HOG uses a fixed grid, and BoVW loses the
+word assignment, HOG/HSV extraction, file reading,                position of SIFT keypoints. Training a bigger classi-
+or cache creation. So the classical and deep through-             cal classifier did not fix this: random forest was worse
+put numbers are not a fair end-to-end comparison. For             than the linear SGD model. CNNs learn spatial fea-
+the HOG/HSV experiment, extraction for all splits                 tures from the data and give a much larger improve-
+takes 42.1 s for HSV, 66.3 s for HOG, and 88.0 s for              ment. ImageNet pretraining helps the most because
+HOG+HSV. Hyperparameter search adds 10.5, 768.4,                  the model does not have to learn basic visual features
+and 843.4 s. The useful takeaway is that a cached lin-            only from 40 images per class.
+ear classifier is fast to try again, not that the full SIFT          The best top-1 accuracy is 66.02%, which is good
+system is thousands of times faster than a CNN.                   for our first full pipeline but still leaves a lot of room.
+                                                                  Training accuracy is close to 100% while validation ac-
+6. Error and Interpretability Analysis                            curacy stays near 66%, so just running more epochs
+                                                                  is unlikely to push it to 80%. Next, we would try
+6.1. Traditional successes and failures                           stronger but sensible augmentation such as RandAug-
+Figure 3 shows some correct and wrong SIFT predic-                ment or MixUp/CutMix, a stronger pretrained back-
+tions. The correct ones often have a large, clear object          bone, higher image resolution, and methods that focus
+
+                                                              5
+          (a) Correct SIFT–BoVW predictions                              (b) Incorrect SIFT–BoVW predictions
+
+Figure 3. Selected successful and failed examples from the primary traditional method. Labels identify the true and
+predicted species; the repository artifacts retain six examples in each category.
+
+
+
+
+Figure 4. Normalised confusion matrix for a 15-class subset
+of the SIFT–BoVW test predictions.
+
+
+                                                                  Figure 5. Representative Grad-CAM examples from the
+                                                                  largest directed confusion pair of the scratch ResNet-18.
+                                                                  Each row contains an input and its overlay; the maps cover
+                                                                  the plant/flower structure despite the wrong species predic-
+on confusing species pairs. If genus or family labels             tion. The repository artifact contains five such pairs; two
+can be added without touching the test set, hierarchy-            are shown here at readable scale.
+aware training could also help.
+
+    There are a few limitations in our comparison. The            8. Reproducibility and Repository Coverage
+scratch and pretrained runs use different optimisers, so
+the result compares the full practical training setups,           The repository has notebooks 00 to 05 for data prepara-
+not only the initial weights. A better controlled exper-          tion, scratch ResNet, pretrained ResNet, Grad-CAM,
+iment would keep the optimiser and schedule the same.             model comparison, and the two traditional methods
+Also, the saved classical timing does not include fea-            (HOG/HSV and SIFT–BoVW). Shared Python code
+ture extraction, so it should not be compared directly            handles data loading, model creation, training, check-
+with the CNN timing. We only generated Grad-CAM                   points, metrics, plots, handcrafted features, and Grad-
+results for the scratch model. Finally, our 500-species           CAM. YAML files store the deep-learning settings
+subset is balanced, while the original iNaturalist data           and the HOG/HSV search values. Each experiment
+is long-tailed. Therefore, these results do not directly          saves JSON/CSV files and figures under results/, and
+show how well the methods handle real class imbalance.            the comparison notebook reads these saved outputs.
+
+                                                              6
+Checkpoints and the image archive are not in Git be-                 [6] Tsung-Yu Lin, Aruni RoyChowdhury, and Subhransu
+cause they are too large.                                                Maji. Bilinear CNN models for fine-grained visual
+   All experiments use seed 42 and the same class map-                   recognition. In Proceedings of the IEEE Interna-
+ping. To rerun the project, first prepare and validate                   tional Conference on Computer Vision, pages 1449–
+the dataset manifests, then run each method notebook,                    1457, 2015. 2
+followed by the comparison and Grad-CAM notebooks.                   [7] Ilya Loshchilov and Frank Hutter. Decoupled weight
+                                                                         decay regularization. In International Conference on
+The tests cover configuration loading, data transforms
+                                                                         Learning Representations, 2019. 3
+and manifests, model shapes, evaluation, Grad-CAM
+                                                                     [8] David G. Lowe. Distinctive image features from scale-
+utilities, and classical feature helpers. Keeping set-                   invariant keypoints. International Journal of Com-
+tings, source code, notebooks, and saved results sep-                    puter Vision, 60(2):91–110, 2004. 1
+arate makes the project easier to follow and reproduce.              [9] Rafael Müller, Simon Kornblith, and Geoffrey E. Hin-
+                                                                         ton. When does label smoothing help? In Advances in
+9. Conclusion                                                            Neural Information Processing Systems, pages 4694–
+                                                                         4703, 2019. 2
+In this project, we compared classical image features
+                                                                    [10] Ramprasaath R. Selvaraju, Michael Cogswell, Ab-
+and ResNet-18 models for 500-species iNaturalist clas-                   hishek Das, Ramakrishna Vedantam, Devi Parikh,
+sification. SIFT–BoVW was the best classical method,                     and Dhruv Batra. Grad-CAM: Visual explanations
+but it reached only 3.42% top-1. ResNet-18 from                          from deep networks via gradient-based localization. In
+scratch reached 41.98%, and ImageNet fine-tuning                         Proceedings of the IEEE International Conference on
+reached 66.02% top-1 and 83.30% top-5. So transfer                       Computer Vision, pages 618–626, 2017. 1, 2
+learning was clearly the most useful thing we tried.                [11] Grant Van Horn, Elijah Cole, Sara Beery, Kimberly
+HOG/HSV features, BoVW pooling, random forest,                           Wilber, Serge Belongie, and Oisin Mac Aodha. Bench-
+and longer scratch training did not solve the fine-                      marking representation learning for natural world im-
+grained classification problem. The learning curves                      age collections. In Proceedings of the IEEE/CVF Con-
+show overfitting, and the error examples show that sim-                  ference on Computer Vision and Pattern Recognition,
+                                                                         pages 12884–12893, 2021. 1, 2
+ilar species are still diﬀicult. Our next steps would
+                                                                    [12] Jason Yosinski, Jeff Clune, Yoshua Bengio, and Hod
+be better pretrained models, higher resolution or part-
+                                                                         Lipson. How transferable are features in deep neural
+aware models, stronger controlled augmentation, and
+                                                                         networks? In Advances in Neural Information Process-
+experiments designed for hard species pairs.                             ing Systems, pages 3320–3328, 2014. 2
+
+References
+ [1] Gabriella Csurka, Christopher R. Dance, Lixin Fan,
+     Jutta Willamowski, and Cédric Bray. Visual catego-
+     rization with bags of keypoints. In ECCV Workshop
+     on Statistical Learning in Computer Vision, pages 1–
+     22, 2004. 1
+ [2] Navneet Dalal and Bill Triggs. Histograms of oriented
+     gradients for human detection. In Proceedings of the
+     IEEE Computer Society Conference on Computer Vi-
+     sion and Pattern Recognition, pages 886–893, 2005. 1
+ [3] Jia Deng, Wei Dong, Richard Socher, Li-Jia Li, Kai Li,
+     and Li Fei-Fei. Imagenet: A large-scale hierarchical im-
+     age database. In Proceedings of the IEEE Conference
+     on Computer Vision and Pattern Recognition, pages
+     248–255, 2009. 1, 2
+ [4] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian
+     Sun. Deep residual learning for image recognition. In
+     Proceedings of the IEEE Conference on Computer Vi-
+     sion and Pattern Recognition, pages 770–778, 2016. 1,
+     2
+ [5] Simon Kornblith, Jonathon Shlens, and Quoc V. Le.
+     Do better ImageNet models transfer better?            In
+     Proceedings of the IEEE/CVF Conference on Com-
+     puter Vision and Pattern Recognition, pages 2661–
+     2671, 2019. 2
+
+
+                                                                7
+

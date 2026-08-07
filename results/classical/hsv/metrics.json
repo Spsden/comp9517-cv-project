@@ -1,0 +1,18 @@
+{
+  "top1_accuracy": 0.0194,
+  "overall_accuracy": 0.0194,
+  "top5_accuracy": 0.0696,
+  "balanced_accuracy": 0.0194,
+  "macro_precision": 0.018167972009321267,
+  "macro_recall": 0.0194,
+  "macro_f1": 0.01580166804022742,
+  "test_images": 5000,
+  "inference_seconds": 0.009535042001516558,
+  "images_per_second": 524381.5390854854,
+  "selected_C": 10.0,
+  "validation_macro_f1": 0.017655501455754112,
+  "feature_dimension": 64,
+  "selected_fit_seconds": 2.4214715420093853,
+  "tuning_fit_seconds": 10.499899124988588,
+  "feature_extraction_seconds": 42.06553066600463
+}

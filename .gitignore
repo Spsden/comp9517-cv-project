@@ -13,15 +13,21 @@ venv/
 env/
 .env
 .env.*
+!.env.example
 
 # The image data and the original archive are kept outside version control.
 train_mini/
 val/
+/data/
 *.tar
 *.tar.gz
 *.tgz
 *.zip
 view.html
+/tests
+/report
+/output
+/author-kit-CVPR2026-v1-latex-
 
 # Checkpoints are stored in Drive during Colab runs.
 checkpoints/*
