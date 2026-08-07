@@ -1,12 +1,17 @@
 # COMP9517 iNaturalist species classification
 
-This repository contains our COMP9517 group project: a comparison between handcrafted features, a ResNet-18 trained from random initialisation, and the same architecture fine-tuned from ImageNet weights.  The project is now designed to run locally after a clone; no Colab, Google Drive, or machine-specific paths are required.
+This is our COMP9517 group project. We compare handcrafted image features, a
+ResNet-18 trained from scratch, and a ResNet-18 fine-tuned from ImageNet
+weights.
 
-The image data are deliberately excluded from Git.  Each developer points a private `.env` file to their local copy of the shared `selected_images.tar` or `selected_images.tar.gz` archive.  The setup command extracts it safely into a Git-ignored location and validates the shared manifests.
+To run it on your computer, point a private `.env` file to your copy of
+`selected_images.tar` or `selected_images.tar.gz`. The setup command will
+extract it into a Git-ignored folder and check that the shared dataset splits
+are ready. You do not need to download the full iNaturalist dataset.
 
 ## Local quick start
 
-Python 3.10 or later is required.  From the repository root:
+Use Python 3.10 or later. Open a terminal in the repository folder and run:
 
 ```bash
 python -m venv .venv
@@ -14,6 +19,7 @@ source .venv/bin/activate              # Windows: .venv\Scripts\activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 python -m pip install --no-build-isolation -e .
+python -m ipykernel install --user --name comp9517-inat --display-name "Python (COMP9517 iNaturalist)"
 
 cp .env.example .env
 # Edit .env and set INAT_DATA_ARCHIVE to your local selected_images.tar(.gz).
@@ -22,14 +28,27 @@ inat-prepare
 jupyter lab
 ```
 
-`inat-prepare` does the following once per machine:
+Before you run a notebook, select **Kernel > Change Kernel > Python (COMP9517
+iNaturalist)**. Please check this carefully: Jupyter must use the same `.venv`
+where you installed the project. You can confirm it in any notebook cell with:
 
-1. Reads `.env` (the real file is ignored by Git).
-2. Safely extracts the archive to `data/inat500/` by default.
-3. Requires the extracted archive to contain `train_mini/` and `val/`.
-4. Validates the 500-class, 40/10/10 split manifests; use `inat-prepare --rebuild-manifests` only when deliberately recreating them.
+```python
+import sys
+print(sys.executable)
+```
 
-The resulting local layout is:
+The path should end in `.venv/bin/python` on macOS/Linux or
+`.venv\\Scripts\\python.exe` on Windows. If you see a different Python path,
+switch the kernel before running the rest of the notebook.
+
+You normally need to run `inat-prepare` only once. It will:
+
+1. Read `.env` (your real file is ignored by Git).
+2. Safely extract the archive to `data/inat500/` by default.
+3. Check that the archive contains `train_mini/` and `val/`.
+4. Check the 500-class, 40/10/10 data splits. Only use `inat-prepare --rebuild-manifests` if you intentionally want to recreate them.
+
+After that, your local files should look like this:
 
 ```text
 project root/
@@ -56,11 +75,14 @@ checkpoints/    local checkpoints (ignored by Git)
 tests/          small checks for shared code
 ```
 
-The training loops deliberately remain in notebooks so the experimental procedure is easy to follow. Dataset handling, portable path configuration, safe archive extraction, model construction, checkpointing, metrics, and Grad-CAM are shared under `src/inat_project`.
+We kept the training loops in the notebooks so you can follow each experiment.
+The reusable parts--dataset loading, paths, archive extraction, model creation,
+checkpoints, metrics, and Grad-CAM--live in `src/inat_project`.
 
 ## Notebooks
 
-After `inat-prepare` succeeds, open and run the notebooks from `notebooks/` in this order:
+Once `inat-prepare` finishes successfully, open `notebooks/` and run these in
+order:
 
 1. `01_resnet18_scratch.ipynb` - random-initialisation baseline.
 2. `02_resnet18_pretrained.ipynb` - ImageNet fine-tuning.
@@ -68,21 +90,25 @@ After `inat-prepare` succeeds, open and run the notebooks from `notebooks/` in t
 4. `04_model_comparison.ipynb` - consolidated deep-model analysis; it only needs result files.
 5. `05_hog_hsv_classical.ipynb` and `05_traditional_svm_sift.ipynb` - two independent traditional baselines.
 
-The notebooks read the same local path configuration.  If the dataset is missing, their first setup cell tells you to run `inat-prepare`; they never download data or mount Drive.
+Every notebook uses the same `.env` configuration. If it cannot find the
+dataset, the first setup cell will tell you to run `inat-prepare`. None of the
+notebooks downloads data or mounts Google Drive.
 
-`notebooks/05_hog_hsv_classical.ipynb` contains the HOG, HSV and combined HOG+HSV linear-SVM baselines. It uses the same manifest-backed splits as the deep models and selects the SVM regularisation parameter using validation macro F1.
+`notebooks/05_hog_hsv_classical.ipynb` contains the HOG, HSV, and combined
+HOG+HSV linear-SVM baselines. It uses exactly the same splits as the deep
+models and chooses the SVM regularisation value using validation macro F1.
 
-## Reproducibility
+## Please keep these experiment settings the same
 
-- The selected 500 class-folder names determine the label set.
-- `metadata/class_to_idx.json` is the canonical label mapping.
-- Split manifests are generated with seed 42 and should be committed.
-- Training and validation come from `train_mini`; `val` is never used for model selection.
-- Checkpoints record the configuration, optimiser, scheduler, epoch and label mapping.
+- Use the selected 500 class folders as the label set.
+- Keep `metadata/class_to_idx.json` as the shared label mapping.
+- Keep the split seed at 42 and commit the split files.
+- Use `train_mini` for training and validation. Do not use `val` while choosing a model.
+- Keep the configuration, optimiser, scheduler, epoch, and label mapping in each checkpoint.
 
 The two known duplicate pairs in `train_mini` are kept together in the training portion by the manifest builder. This avoids identical content appearing in both the training and validation partitions.
 
-## Results expected from each deep model
+## What each deep model should produce
 
 - training and validation loss/top-1 curves
 - top-1 and top-5 test accuracy
@@ -94,13 +120,19 @@ The two known duplicate pairs in `train_mini` are kept together in the training 
 
 ## Path configuration
 
-Only `INAT_DATA_ARCHIVE` is required for a new local setup.  It can be an absolute path or a path relative to the repository root.  The remaining variables shown in [.env.example](.env.example) are optional overrides if, for example, you keep data on an external drive:
+For your first setup, the only required setting is `INAT_DATA_ARCHIVE`. It can
+be an absolute path or a path relative to the repository folder. The other
+settings in [.env.example](.env.example) are optional. They are useful if, for
+example, you want to keep the extracted data on an external drive:
 
 ```dotenv
 INAT_DATA_ARCHIVE=/Volumes/external-drive/selected_images.tar.gz
 INAT_DATA_DIR=/Volumes/external-drive/inat500
 ```
 
-Run `inat-prepare --show-paths` to check what the current configuration resolves to.  Environment variables supplied by your shell override `.env`, which is useful for CI or temporary runs.
+If you are unsure which paths the project is using, run
+`inat-prepare --show-paths`. Values set in your shell override `.env`, which is
+handy for temporary runs or CI.
 
-Large model files, image archives, extracted images, cache files, and real `.env` files must not be added to Git.
+Please do not add model weights, image archives, extracted images, cache files,
+or your real `.env` file to Git.
