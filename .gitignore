@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+/tmp/
 .mypy_cache/
 .ruff_cache/
 .coverage
@@ -24,12 +25,11 @@ val/
 *.tgz
 *.zip
 view.html
-/tests
 /report
 /output
 /author-kit-CVPR2026-v1-latex-
 
-# Checkpoints are stored in Drive during Colab runs.
+# Checkpoints are local generated artefacts.
 checkpoints/*
 !checkpoints/.gitkeep
 

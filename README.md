@@ -70,8 +70,6 @@ After `inat-prepare` succeeds, open and run the notebooks from `notebooks/` in t
 
 The notebooks read the same local path configuration.  If the dataset is missing, their first setup cell tells you to run `inat-prepare`; they never download data or mount Drive.
 
-`00_prepare_dataset.ipynb` documents the original one-off process used to make the shared 500-class archive from the full iNaturalist release.  It is not part of normal local setup when you already have `selected_images.tar(.gz)`.
-
 `notebooks/05_hog_hsv_classical.ipynb` contains the HOG, HSV and combined HOG+HSV linear-SVM baselines. It uses the same manifest-backed splits as the deep models and selects the SVM regularisation parameter using validation macro F1.
 
 ## Reproducibility
